@@ -1,6 +1,7 @@
 import json
 import os
 
+import httpx
 from dotenv import load_dotenv
 from openai import OpenAI
 from utils import JobInput
@@ -107,3 +108,37 @@ class OllamaOpenAiEngine(OllamaEngine):
             yield "data: [DONE]"
         except Exception as e:
             yield {"error": str(e)}
+
+
+OLLAMA_BASE = "http://localhost:11434"
+
+
+class OllamaAnthropicEngine:
+    """Forward Anthropic Messages API requests to Ollama's native /v1/messages endpoint."""
+
+    def __init__(self):
+        print("OllamaAnthropicEngine initialized")
+
+    async def generate(self, job_input):
+        body = dict(job_input.anthropic_input)
+
+        # Default model from env if not in request
+        if "model" not in body:
+            body["model"] = os.getenv("OLLAMA_MODEL_NAME", "llama3.2:1b")
+
+        # Non-streaming — RunPod handles the streaming layer
+        body["stream"] = False
+
+        async with httpx.AsyncClient() as client:
+            try:
+                resp = await client.post(
+                    f"{OLLAMA_BASE}/v1/messages",
+                    json=body,
+                    headers={"Content-Type": "application/json"},
+                    timeout=300,
+                )
+                resp.raise_for_status()
+                yield resp.json()
+            except Exception as e:
+                print(f"OllamaAnthropicEngine error: {e}")
+                yield {"error": str(e)}

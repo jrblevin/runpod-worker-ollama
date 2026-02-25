@@ -1,7 +1,7 @@
 import runpod
 import os
 from utils import JobInput
-from engine import OllamaEngine, OllamaOpenAiEngine
+from engine import OllamaAnthropicEngine, OllamaEngine, OllamaOpenAiEngine
 
 DEFAULT_MAX_CONCURRENCY = 8
 max_concurrency = int(os.getenv("MAX_CONCURRENCY", DEFAULT_MAX_CONCURRENCY))
@@ -11,8 +11,12 @@ async def handler(job: any):
     print('Job:', job)
 
     job_input = JobInput(job["input"])
-    engine_class = OllamaOpenAiEngine if job_input.openai_route else OllamaEngine
-    engine = engine_class()  # Instantiate the engine
+    if job_input.anthropic_input:
+        engine = OllamaAnthropicEngine()
+    elif job_input.openai_route:
+        engine = OllamaOpenAiEngine()
+    else:
+        engine = OllamaEngine()
 
     job = engine.generate(job_input)  # Call generate with job_input
 
